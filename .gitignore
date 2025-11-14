@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Airflow logs and environment
+airflow/logs/
+airflow/.env
+airflow/dags/__pycache__/
+
+# Credentials and secrets
+airflow/creds/
+*.json
+*.key
+*.pem
+
+# DBT build artifacts
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml
+
+# Docker and system files
+*.log
+*.env
+*.DS_Store
+
+# VS Code
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
