@@ -1,0 +1,9 @@
+apache-airflow-providers-google
+pyarrow
+pandas
+sqlalchemy
+psycopg2-binary
+dbt-core==1.6.0
+dbt-bigquery==1.6.0
+google-cloud-bigquery
+requests
