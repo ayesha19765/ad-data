@@ -160,11 +160,30 @@ Once the DAGs complete successfully:
 * Aarthi Honguthi
 * Dhanalakshmi Dhanapal
 
+
 ---
+# Screenshots of PPT
+<!-- ![Project Structure](images/1.png) -->
+![Project Structure](images/2.png)
+![Project Structure](images/3.png)
+![Project Structure](images/4.png)
+![Project Structure](images/5.png)
+![Project Structure](images/6.png)
+![Project Structure](images/7.png)
+![Project Structure](images/8.png)
 
 ## Demo Video:
 
 Watch our 2-minute project demo here:
 🔗 [https://drive.google.com/file/d/1eTF47OxUEebXEzhFnJKu9dfGXvvuQDAL/view?usp=sharing](https://drive.google.com/file/d/1eTF47OxUEebXEzhFnJKu9dfGXvvuQDAL/view?usp=sharing)
 
----
+![Project Structure](images/9.png)
+![Project Structure](images/10.png)
+![Project Structure](images/11.png)
+![Project Structure](images/12.png)
+![Project Structure](images/13.png)
+![Project Structure](images/14.png)
+![Project Structure](images/15.png)
+![Project Structure](images/16.png)
+![Project Structure](images/17.png)
+<!-- ![Project Structure](images/18.png) -->
