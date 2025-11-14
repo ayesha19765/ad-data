@@ -1,0 +1,26 @@
+adaptive_ads:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: adaptive_ads_stg # <-- dev dataset
+      location: asia-south1
+      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
+      threads: 4
+      priority: interactive
+      timeout_seconds: 300
+      fixed_retries: 1
+
+    prod:
+      type: bigquery
+      method: service-account
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: adaptive_ads_prod # <-- prod dataset
+      location: asia-south1
+      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
+      threads: 4
+      priority: interactive
+      timeout_seconds: 300
+      fixed_retries: 1
