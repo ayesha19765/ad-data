@@ -1,0 +1,22 @@
+version: 2
+sources:
+  - name: imdb
+    schema: imdb_dataset
+    tables:
+      - name: action
+      - name: adventure
+      - name: animation
+      - name: biography
+      - name: crime
+      - name: family
+      - name: fantasy
+      - name: film_noir
+        identifier: film-noir
+      - name: history
+      - name: horror
+      - name: mystery
+      - name: romance
+      - name: scifi
+      - name: sports
+      - name: thriller
+      - name: war
