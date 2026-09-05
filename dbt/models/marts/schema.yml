@@ -1,0 +1,104 @@
+version: 2
+
+models:
+  - name: daily_ad_metrics
+    description: >
+      Daily aggregated advertising performance metrics.
+      Grain: One row represents one adType and video placement for one calendar day.
+    columns:
+      - name: dailyAdMetricKey
+        description: "Surrogate primary key generated from ad_date, adType, and videoKey."
+        tests:
+          - unique
+          - not_null
+      - name: ad_date
+        description: "Calendar date associated with ad performance."
+        tests:
+          - not_null
+      - name: adType
+        description: "Ad placement format."
+        tests:
+          - not_null
+      - name: total_impressions
+        description: "Total count of ad impressions/interactions."
+        tests:
+          - not_null
+      - name: unique_viewers
+        description: "Count of distinct active users exposed to the ad placement."
+        tests:
+          - not_null
+      - name: total_ad_duration_seconds
+        description: "Total elapsed duration of ad exposures."
+        tests:
+          - not_null
+      - name: avg_ad_duration_seconds
+        description: "Average duration per ad impression."
+        tests:
+          - not_null
+      - name: free_tier_impressions
+        description: "Number of impressions served to free-tier users."
+        tests:
+          - not_null
+      - name: paid_tier_impressions
+        description: "Number of impressions served to paid-tier users."
+        tests:
+          - not_null
+
+  - name: daily_user_engagement
+    description: >
+      Daily user streaming engagement metrics segmented by subscription tier.
+      Grain: One row represents one subscription tier for one calendar day.
+    columns:
+      - name: dailyEngagementKey
+        description: "Surrogate primary key generated from activity_date and subscription_tier."
+        tests:
+          - unique
+          - not_null
+      - name: activity_date
+        description: "Calendar date of streaming activity."
+        tests:
+          - not_null
+      - name: subscription_tier
+        description: "User membership tier (free vs paid)."
+        tests:
+          - not_null
+      - name: total_streams
+        description: "Total count of streaming sessions."
+        tests:
+          - not_null
+      - name: unique_streaming_users
+        description: "Count of distinct active streaming users."
+        tests:
+          - not_null
+
+  - name: wide_streams
+    description: >
+      Denormalized analytical reporting view joining video stream facts with user, content, location, and date dimensions.
+      Grain: One row per stream event.
+    columns:
+      - name: streamKey
+        tests:
+          - not_null
+      - name: userKey
+        tests:
+          - not_null
+      - name: videoKey
+        tests:
+          - not_null
+      - name: dateKey
+        tests:
+          - not_null
+      - name: locationKey
+        tests:
+          - not_null
+
+  - name: top_action_movies
+    description: "IMDb action genre content catalog mart ranking top 100 rated action titles."
+    columns:
+      - name: title
+        tests:
+          - not_null
+      - name: rating
+        tests:
+          - not_null
+

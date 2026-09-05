@@ -1,19 +1,34 @@
 {{ config(
-  materialized = 'table',
-  partition_by={
-    "field": "ts",
-    "data_type": "timestamp",
-    "granularity": "hour"
-  }
-  ) }}
+    materialized = 'incremental',
+    unique_key = 'streamKey',
+    incremental_strategy = 'merge',
+    partition_by = {
+      "field": "ts",
+      "data_type": "timestamp",
+      "granularity": "day"
+    },
+    cluster_by = ["userKey", "videoKey", "locationKey"]
+) }}
+
+WITH watch_events AS (
+    SELECT * 
+    FROM {{ ref('stg_watch_events') }}
+    {% if is_incremental() %}
+    -- Lookback window of 3 days to safely process late-arriving telemetry events
+    WHERE ts >= (SELECT TIMESTAMP_SUB(MAX(ts), INTERVAL 3 DAY) FROM {{ this }})
+    {% endif %}
+)
 
 SELECT 
-    dim_users.userKey AS userKey,
-    dim_movies.movieKey AS videoKey,
-    dim_datetime.dateKey AS dateKey,
-    dim_location.locationKey AS locationKey,
+    {{ dbt_utils.surrogate_key(['watch_events.userId', 'watch_events.ts', 'watch_events.video']) }} AS streamKey,
+    COALESCE(dim_users.userKey, 'NA') AS userKey,
+    COALESCE(dim_movies.movieKey, 'NA') AS videoKey,
+    COALESCE(dim_datetime.dateKey, 0) AS dateKey,
+    COALESCE(dim_location.locationKey, 'NA') AS locationKey,
+    watch_events.duration AS duration,
+    watch_events.level AS level,
     watch_events.ts AS ts
-FROM {{ source('staging', 'watch_events') }} AS watch_events
+FROM watch_events
 LEFT JOIN {{ ref('dim_users') }} AS dim_users
     ON watch_events.userId = dim_users.userId 
     AND CAST(watch_events.ts AS DATE) >= dim_users.rowActivationDate 

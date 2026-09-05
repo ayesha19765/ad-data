@@ -1,7 +1,9 @@
-{{ config(materialized = 'table') }}
+{{ config(
+    materialized = 'table',
+    cluster_by = ['userId']
+) }}
 
--- level column in the users dimension is considered to be a SCD2 change.
--- Accommodates changing levels from free to paid and maintains the latest state of the user along with historical records.
+-- SCD Type 2 user dimension: tracks user subscription levels (free vs paid) over time.
 
 SELECT {{ dbt_utils.surrogate_key(['userId', 'rowActivationDate', 'level']) }} AS userKey, *
 FROM
@@ -15,13 +17,10 @@ FROM
         level, 
         CAST(registration AS INT64) AS registration, 
         minDate AS rowActivationDate,
-        -- Choose the start date from the next record and add that as the expiration date for the current record
         LEAD(minDate, 1, DATE '9999-12-31') OVER(PARTITION BY userId, firstName, lastName, gender, dateOfBirth ORDER BY grouped) AS rowExpirationDate,
-        -- Assign a flag indicating which is the latest row for easier select queries 
         CASE WHEN RANK() OVER(PARTITION BY userId, firstName, lastName, gender, dateOfBirth ORDER BY grouped DESC) = 1 THEN 1 ELSE 0 END AS currentRow
     FROM
     (
-        -- Find the earliest date available for each free/paid status change
         SELECT 
             userId, 
             firstName, 
@@ -34,15 +33,12 @@ FROM
             CAST(MIN(date) AS DATE) AS minDate
         FROM
         (
-            -- Create distinct group of each level change to identify the change in level accurately
             SELECT *, SUM(lagged) OVER(PARTITION BY userId, firstName, lastName, gender, dateOfBirth ORDER BY date) AS grouped
             FROM
             (
-                -- Lag the level and see where the user changes level from free to paid or otherwise
                 SELECT *, CASE WHEN LAG(level, 1, 'NA') OVER(PARTITION BY userId, firstName, lastName, gender, dateOfBirth ORDER BY date) <> level THEN 1 ELSE 0 END AS lagged
                 FROM
                 (
-                    -- Select distinct state of user in each timestamp
                     SELECT DISTINCT 
                         userId,
                         firstName,
@@ -52,7 +48,7 @@ FROM
                         registration,
                         level,
                         ts AS date
-                    FROM {{ source('staging', 'watch_events') }}
+                    FROM {{ ref('stg_watch_events') }}
                     WHERE userId != 0
                 )
             )
@@ -74,7 +70,7 @@ FROM
         CAST(MIN(ts) AS DATE) AS rowActivationDate, 
         DATE '9999-12-31' AS rowExpirationDate, 
         1 AS currentRow
-    FROM {{ source('staging', 'watch_events') }} 
+    FROM {{ ref('stg_watch_events') }} 
     WHERE userId = 0
     GROUP BY userId, firstName, lastName, gender, dateOfBirth, level, registration
 )

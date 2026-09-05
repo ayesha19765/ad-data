@@ -1,0 +1,72 @@
+version: 2
+
+sources:
+  - name: staging
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: adaptive_ads_stg
+    tables:
+      - name: watch_events
+        description: "Raw BigQuery partition table loaded with video watch telemetry."
+      - name: ad_events
+        description: "Raw BigQuery partition table loaded with ad interaction telemetry."
+      - name: page_view_events
+        description: "Raw BigQuery partition table loaded with page view telemetry."
+      - name: auth_events
+        description: "Raw BigQuery partition table loaded with authentication telemetry."
+      - name: movies
+        description: "Raw BigQuery table loaded with IMDb movie catalog metadata."
+      - name: state_codes
+        description: "Raw seed table of US state codes."
+
+models:
+  - name: stg_watch_events
+    description: "Standardized staging view for video watch events."
+    columns:
+      - name: ts
+        tests:
+          - not_null
+      - name: userId
+        tests:
+          - not_null
+
+  - name: stg_ad_events
+    description: "Standardized staging view for ad interaction events."
+    columns:
+      - name: ts
+        tests:
+          - not_null
+      - name: userId
+        tests:
+          - not_null
+      - name: adType
+        tests:
+          - not_null
+
+  - name: stg_page_view_events
+    description: "Standardized staging view for page view events."
+    columns:
+      - name: ts
+        tests:
+          - not_null
+
+  - name: stg_auth_events
+    description: "Standardized staging view for authentication events."
+    columns:
+      - name: ts
+        tests:
+          - not_null
+
+  - name: stg_movies
+    description: "Standardized staging view for movie catalog."
+    columns:
+      - name: movieId
+        tests:
+          - not_null
+
+  - name: stg_state_codes
+    description: "Standardized staging view for US state codes reference."
+    columns:
+      - name: stateCode
+        tests:
+          - not_null
+

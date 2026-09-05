@@ -1,57 +1,80 @@
 version: 2
 
-sources:
-  - name: staging
-    database: "{{ env_var('GCP_PROJECT_ID') }}"
-    schema: adaptive_ads_stg
-    tables:
-      - name: watch_events
-      - name: ad_events
-      - name: page_view_events
-      - name: auth_events
-      - name: movies
-      - name: state_codes
-
 models:
   - name: dim_users
-    description: "SCD Type 2 dimension table storing user profiles and membership tier changes over time."
+    description: "SCD Type 2 dimension table storing user demographic profiles and tracking membership tier transitions (free vs paid) over time."
     columns:
       - name: userKey
         description: "Surrogate primary key generated from userId, rowActivationDate, and level."
         tests:
           - unique
           - not_null
+      - name: userId
+        description: "Natural business user identifier."
+        tests:
+          - not_null
+      - name: level
+        description: "User membership tier at this historical validity window."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['free', 'paid', 'NA']
+      - name: currentRow
+        description: "Flag indicating whether this record is the active profile row for the user (1 for active, 0 for historical)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1]
 
   - name: dim_movies
-    description: "Dimension table storing movie and video content metadata."
+    description: "Dimension table storing enriched video and movie content metadata."
     columns:
       - name: movieKey
         description: "Surrogate primary key generated from movieId."
         tests:
           - unique
           - not_null
+      - name: movieId
+        description: "Unique movie/content identifier."
+        tests:
+          - not_null
 
   - name: dim_location
-    description: "Dimension table storing geographic locations mapped to US state codes."
+    description: "Geographic location dimension table mapping coordinates and cities to standardized US state codes."
     columns:
       - name: locationKey
         description: "Surrogate primary key generated from latitude, longitude, city, and stateName."
         tests:
           - unique
           - not_null
+      - name: stateCode
+        description: "Two-letter US state code or 'NA'."
+        tests:
+          - not_null
 
   - name: dim_datetime
-    description: "Dimension table providing hourly timestamp attributes for analytical slicing."
+    description: "Time dimension table providing hourly intervals and analytical date attributes."
     columns:
       - name: dateKey
         description: "Primary key in UNIX epoch seconds for each hourly interval."
         tests:
           - unique
           - not_null
+      - name: weekendFlag
+        description: "Boolean indicator for weekend timestamps."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
 
   - name: fact_streams
-    description: "Fact table recording video stream events partitioned by hour."
+    description: "Incremental fact table recording video streaming events, partitioned by day on ts and clustered by user, video, and location."
     columns:
+      - name: streamKey
+        description: "Surrogate primary key generated from userId, event timestamp, and video title."
+        tests:
+          - unique
+          - not_null
       - name: userKey
         description: "Foreign key referencing dim_users."
         tests:
@@ -80,19 +103,52 @@ models:
           - relationships:
               to: ref('dim_location')
               field: locationKey
+      - name: ts
+        description: "Event occurrence timestamp (used as partition field)."
+        tests:
+          - not_null
 
-  - name: wide_streams
-    description: "Wide analytical view joining fact_streams with all dimensions for reporting."
+  - name: fact_ad_events
+    description: "Incremental fact table recording ad impressions, clicks, and interaction events."
     columns:
+      - name: adEventKey
+        description: "Surrogate primary key generated from userId, timestamp, adType, and video title."
+        tests:
+          - unique
+          - not_null
       - name: userKey
+        description: "Foreign key referencing dim_users."
         tests:
           - not_null
+          - relationships:
+              to: ref('dim_users')
+              field: userKey
       - name: videoKey
+        description: "Foreign key referencing dim_movies."
         tests:
           - not_null
+          - relationships:
+              to: ref('dim_movies')
+              field: movieKey
       - name: dateKey
+        description: "Foreign key referencing dim_datetime."
         tests:
           - not_null
+          - relationships:
+              to: ref('dim_datetime')
+              field: dateKey
       - name: locationKey
+        description: "Foreign key referencing dim_location."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_location')
+              field: locationKey
+      - name: adType
+        description: "Ad placement format (e.g. pre-roll, mid-roll, banner)."
+        tests:
+          - not_null
+      - name: ts
+        description: "Event occurrence timestamp (used as partition field)."
         tests:
           - not_null
