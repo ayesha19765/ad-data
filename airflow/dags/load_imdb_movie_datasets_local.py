@@ -1,19 +1,26 @@
-# adaptive-ads/airflow/dags/load_imdb_movie_datasets_local.py
+"""
+IMDb Movie Datasets Ingestion Pipeline.
 
+Downloads raw IMDb genre datasets, converts to Parquet in local fake_gcs,
+and optionally loads them directly into BigQuery dataset tables with WRITE_TRUNCATE.
+"""
+
+import logging
 import os
+import re
+from datetime import datetime, timedelta
 from io import StringIO
-from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator, ShortCircuitOperator
-
-import requests
+from google.cloud import bigquery
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from google.cloud import bigquery
-# add near the imports
-import re
+import requests
+
+logger = logging.getLogger(__name__)
+
 
 def _sanitize_columns(cols):
     new, used = [], set()
@@ -38,7 +45,6 @@ FAKE_GCS_ROOT = "/opt/airflow/fake_gcs"
 
 BASE_URL = "https://github.com/AarthiHonguthi/ad-analytics/raw/main/dbt/seeds/imdb_movie_dataset"
 
-# Use ONLY the genres that exist in your local dataset
 GENRES = [
     "action", "adventure", "animation", "biography",
     "crime", "family", "fantasy", "film-noir",
@@ -59,7 +65,8 @@ def check_file_exists(url: str) -> bool:
     try:
         r = requests.head(url, allow_redirects=True, timeout=20)
         return r.status_code == 200
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to check file existence for %s: %s", url, exc)
         return False
 
 
@@ -69,6 +76,7 @@ def csv_url_to_parquet(url: str, out_dir: str, parquet_name: str) -> str:
     Removes the need for any intermediate local CSV files.
     """
     os.makedirs(out_dir, exist_ok=True)
+    logger.info("Downloading dataset from: %s", url)
     r = requests.get(url, timeout=60)
     r.raise_for_status()
 
@@ -77,6 +85,7 @@ def csv_url_to_parquet(url: str, out_dir: str, parquet_name: str) -> str:
     out_path = os.path.join(out_dir, parquet_name)
     table = pa.Table.from_pandas(df, preserve_index=False)
     pq.write_table(table, out_path)
+    logger.info("Saved %d records to Parquet at: %s", len(df), out_path)
     return out_path
 
 
@@ -91,8 +100,13 @@ def load_parquet_to_bigquery(parquet_path: str, table_id: str) -> None:
     original = list(df.columns)
     df.columns = _sanitize_columns(df.columns)
     if original != list(df.columns):
-        print("Column renames:", "; ".join(f"{o}->{n}" for o, n in zip(original, df.columns) if o != n))
+        logger.info(
+            "Column renames for %s: %s",
+            table_id,
+            "; ".join(f"{o}->{n}" for o, n in zip(original, df.columns) if o != n),
+        )
 
+    logger.info("Loading %d rows into BigQuery table: %s", len(df), table_id)
     client = bigquery.Client(project=GCP_PROJECT_ID)
     job = client.load_table_from_dataframe(
         df,
@@ -102,14 +116,18 @@ def load_parquet_to_bigquery(parquet_path: str, table_id: str) -> None:
         ),
     )
     job.result()  # wait for the load to finish
-
+    logger.info("Successfully loaded BigQuery table: %s", table_id)
 
 
 # ---- DAG ---------------------------------------------------------------------
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
-    "retries": 1,
+    "email_on_failure": False,
+    "email_on_retry": False,
+    "retries": 2,
+    "retry_delay": timedelta(minutes=3),
+    "execution_timeout": timedelta(minutes=15),
 }
 
 with DAG(

@@ -1,4 +1,27 @@
-INSERT {{ BIGQUERY_DATASET }}.{{ AD_EVENTS_TABLE }}
+-- Ensure idempotency: delete existing partition records for this execution interval prior to loading
+DELETE FROM {{ BIGQUERY_DATASET }}.{{ AD_EVENTS_TABLE }}
+WHERE ts >= TIMESTAMP('{{ logical_date.strftime("%Y-%m-%d %H:00:00+00") }}')
+  AND ts < TIMESTAMP_ADD(TIMESTAMP('{{ logical_date.strftime("%Y-%m-%d %H:00:00+00") }}'), INTERVAL 1 HOUR);
+
+INSERT INTO {{ BIGQUERY_DATASET }}.{{ AD_EVENTS_TABLE }} (
+    ts,
+    adType,
+    video,
+    duration,
+    auth,
+    level,
+    city,
+    state,
+    userAgent,
+    lon,
+    lat,
+    userId,
+    lastName,
+    firstName,
+    dateOfBirth,
+    gender,
+    registration
+)
 SELECT
     timestamp AS ts,
     COALESCE(adType, 'NA') AS adType,
@@ -17,5 +40,4 @@ SELECT
     COALESCE(dateOfBirth, 'NA') AS dateOfBirth,
     COALESCE(gender, 'NA') AS gender,
     COALESCE(registration, 9999999999999) AS registration
-FROM {{ BIGQUERY_DATASET }}.{{ AD_EVENTS_TABLE}}_{{ logical_date.strftime("%m%d%H") }} -- Creates a table name with month day and hour values appended to it
-                                                                                            -- like ad_events_052117 for 21-05-2024 17:00:00
+FROM {{ BIGQUERY_DATASET }}.{{ AD_EVENTS_TABLE }}_{{ logical_date.strftime("%m%d%H") }};

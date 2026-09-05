@@ -10,8 +10,8 @@ FROM
             COALESCE(state_codes.stateName, 'NA') as stateName,
             lat as latitude,
             lon as longitude
-        FROM {{ source('staging', 'watch_events') }}
-        LEFT JOIN {{ ref('state_codes') }} on listen_events.state = state_codes.stateCode
+        FROM {{ source('staging', 'watch_events') }} AS watch_events
+        LEFT JOIN {{ ref('state_codes') }} AS state_codes on watch_events.state = state_codes.stateCode
 
         UNION ALL
 

@@ -1,15 +1,10 @@
 {{ config(
-      materialized = 'view',
-      partition_by={
-        "field": "ts",
-        "data_type": "timestamp",
-        "granularity": "hour"
-      }
+      materialized = 'view'
   ) }}
 
 SELECT
     fact_streams.userKey AS userKey,
-    fact_streams.videoKey AS videoKey ,
+    fact_streams.videoKey AS videoKey,
     fact_streams.dateKey AS dateKey,
     fact_streams.locationKey AS locationKey,
     fact_streams.ts AS timestamp,
@@ -18,8 +13,8 @@ SELECT
     dim_users.lastName AS lastName,
     dim_users.gender AS gender,
     dim_users.level AS level,
-    dim_users.userId as userId,
-    dim_users.currentRow as currentUserRow,
+    dim_users.userId AS userId,
+    dim_users.currentRow AS currentUserRow,
 
     dim_movies.runtime AS videoDuration,
     dim_movies.movieName AS videoName,
@@ -31,15 +26,15 @@ SELECT
 
     dim_datetime.date AS dateHour,
     dim_datetime.dayOfMonth AS dayOfMonth,
-    dim_datetime.dayOfWeek AS dayOfWeek,
+    dim_datetime.dayOfWeek AS dayOfWeek
 
 FROM
-    {{ ref('fact_streams') }}
+    {{ ref('fact_streams') }} AS fact_streams
 JOIN
-    {{ ref('dim_users') }} ON fact_streams.userKey = dim_users.userKey
+    {{ ref('dim_users') }} AS dim_users ON fact_streams.userKey = dim_users.userKey
 JOIN
-    {{ ref('dim_movies') }} ON fact_streams.videoKey = dim_movies.movieKey
+    {{ ref('dim_movies') }} AS dim_movies ON fact_streams.videoKey = dim_movies.movieKey
 JOIN
-    {{ ref('dim_location') }} ON fact_streams.locationKey = dim_location.locationKey
+    {{ ref('dim_location') }} AS dim_location ON fact_streams.locationKey = dim_location.locationKey
 JOIN
-    {{ ref('dim_datetime') }} ON fact_streams.dateKey = dim_datetime.dateKey
+    {{ ref('dim_datetime') }} AS dim_datetime ON fact_streams.dateKey = dim_datetime.dateKey

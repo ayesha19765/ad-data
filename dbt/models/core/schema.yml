@@ -1,13 +1,98 @@
 version: 2
 
 sources:
-    - name: staging
-      database: "{{ env_var('GCP_PROJECT_ID') }}"
-      schema: adaptive_ads_stg
-      tables:
-        - name: watch_events
-        - name: ad_events
-        - name: page_view_events
-        - name: auth_events
-        - name: movies
-        - name: state_codes
+  - name: staging
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: adaptive_ads_stg
+    tables:
+      - name: watch_events
+      - name: ad_events
+      - name: page_view_events
+      - name: auth_events
+      - name: movies
+      - name: state_codes
+
+models:
+  - name: dim_users
+    description: "SCD Type 2 dimension table storing user profiles and membership tier changes over time."
+    columns:
+      - name: userKey
+        description: "Surrogate primary key generated from userId, rowActivationDate, and level."
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_movies
+    description: "Dimension table storing movie and video content metadata."
+    columns:
+      - name: movieKey
+        description: "Surrogate primary key generated from movieId."
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_location
+    description: "Dimension table storing geographic locations mapped to US state codes."
+    columns:
+      - name: locationKey
+        description: "Surrogate primary key generated from latitude, longitude, city, and stateName."
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_datetime
+    description: "Dimension table providing hourly timestamp attributes for analytical slicing."
+    columns:
+      - name: dateKey
+        description: "Primary key in UNIX epoch seconds for each hourly interval."
+        tests:
+          - unique
+          - not_null
+
+  - name: fact_streams
+    description: "Fact table recording video stream events partitioned by hour."
+    columns:
+      - name: userKey
+        description: "Foreign key referencing dim_users."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_users')
+              field: userKey
+      - name: videoKey
+        description: "Foreign key referencing dim_movies."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_movies')
+              field: movieKey
+      - name: dateKey
+        description: "Foreign key referencing dim_datetime."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_datetime')
+              field: dateKey
+      - name: locationKey
+        description: "Foreign key referencing dim_location."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_location')
+              field: locationKey
+
+  - name: wide_streams
+    description: "Wide analytical view joining fact_streams with all dimensions for reporting."
+    columns:
+      - name: userKey
+        tests:
+          - not_null
+      - name: videoKey
+        tests:
+          - not_null
+      - name: dateKey
+        tests:
+          - not_null
+      - name: locationKey
+        tests:
+          - not_null

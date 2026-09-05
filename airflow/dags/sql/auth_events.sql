@@ -1,4 +1,26 @@
-INSERT {{ BIGQUERY_DATASET }}.{{ AUTH_EVENTS_TABLE }}
+-- Ensure idempotency: delete existing partition records for this execution interval prior to loading
+DELETE FROM {{ BIGQUERY_DATASET }}.{{ AUTH_EVENTS_TABLE }}
+WHERE ts >= TIMESTAMP('{{ logical_date.strftime("%Y-%m-%d %H:00:00+00") }}')
+  AND ts < TIMESTAMP_ADD(TIMESTAMP('{{ logical_date.strftime("%Y-%m-%d %H:00:00+00") }}'), INTERVAL 1 HOUR);
+
+INSERT INTO {{ BIGQUERY_DATASET }}.{{ AUTH_EVENTS_TABLE }} (
+    ts,
+    level,
+    city,
+    state,
+    userAgent,
+    lon,
+    lat,
+    userId,
+    lastName,
+    firstName,
+    dateOfBirth,
+    gender,
+    device,
+    os,
+    registration,
+    success
+)
 SELECT
     timestamp AS ts,
     COALESCE(level, 'NA') AS level,
@@ -15,6 +37,5 @@ SELECT
     COALESCE(deviceType, 'NA') AS device,
     COALESCE(deviceOs, 'NA') AS os,
     COALESCE(registration, 9999999999999) AS registration,
-    COALESCE(success, FALSE)
-FROM {{ BIGQUERY_DATASET }}.{{ AUTH_EVENTS_TABLE}}_{{ logical_date.strftime("%m%d%H") }} -- Creates a table name with month day and hour values appended to it
-                                                                                            -- like listen_events_032313 for 23-03-2022 13:00:00
+    COALESCE(success, FALSE) AS success
+FROM {{ BIGQUERY_DATASET }}.{{ AUTH_EVENTS_TABLE }}_{{ logical_date.strftime("%m%d%H") }};

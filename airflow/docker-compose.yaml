@@ -65,8 +65,8 @@ x-airflow-common:
     _PIP_ADDITIONAL_REQUIREMENTS: ''
     # GOOGLE_APPLICATION_CREDENTIALS: /.google/credentials/google_credentials.json
     # AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: 'google-cloud-platform://?extra__google_cloud_platform__key_path=/.google/credentials/google_credentials.json'
-    GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/creds/adaptive-ads-demo-61812e2aae7f.json
-    AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: "google-cloud-platform://?extra__google_cloud_platform__project=${GCP_PROJECT_ID}&extra__google_cloud_platform__key_path=/opt/airflow/creds/adaptive-ads-demo-61812e2aae7f.json&extra__google_cloud_platform__scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform"
+    GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/opt/airflow/creds/service-account.json}
+    AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: "google-cloud-platform://?extra__google_cloud_platform__project=${GCP_PROJECT_ID}&extra__google_cloud_platform__key_path=${GOOGLE_APPLICATION_CREDENTIALS:-/opt/airflow/creds/service-account.json}&extra__google_cloud_platform__scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform"
 
 
     GCP_PROJECT_ID: '${GCP_PROJECT_ID}'

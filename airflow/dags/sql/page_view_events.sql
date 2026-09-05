@@ -1,4 +1,31 @@
-INSERT {{ BIGQUERY_DATASET }}.{{ PAGE_VIEW_EVENTS_TABLE }}
+-- Ensure idempotency: delete existing partition records for this execution interval prior to loading
+DELETE FROM {{ BIGQUERY_DATASET }}.{{ PAGE_VIEW_EVENTS_TABLE }}
+WHERE ts >= TIMESTAMP('{{ logical_date.strftime("%Y-%m-%d %H:00:00+00") }}')
+  AND ts < TIMESTAMP_ADD(TIMESTAMP('{{ logical_date.strftime("%Y-%m-%d %H:00:00+00") }}'), INTERVAL 1 HOUR);
+
+INSERT INTO {{ BIGQUERY_DATASET }}.{{ PAGE_VIEW_EVENTS_TABLE }} (
+    ts,
+    page,
+    auth,
+    method,
+    status,
+    level,
+    city,
+    state,
+    userAgent,
+    lon,
+    lat,
+    userId,
+    lastName,
+    firstName,
+    dateOfBirth,
+    gender,
+    registration,
+    video,
+    device,
+    os,
+    duration
+)
 SELECT
     timestamp AS ts,
     COALESCE(page, 'NA') AS page,
@@ -21,5 +48,4 @@ SELECT
     COALESCE(deviceType, 'NA') AS device,
     COALESCE(deviceOs, 'NA') AS os,
     COALESCE(duration, -1) AS duration
-FROM {{ BIGQUERY_DATASET }}.{{ PAGE_VIEW_EVENTS_TABLE}}_{{ logical_date.strftime("%m%d%H") }} -- Creates a table name with month day and hour values appended to it
-                                                                                            -- like page_view_events_052117 for 21-05-2024 17:00:00
+FROM {{ BIGQUERY_DATASET }}.{{ PAGE_VIEW_EVENTS_TABLE }}_{{ logical_date.strftime("%m%d%H") }};

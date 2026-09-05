@@ -1,7 +1,0 @@
-version: 2
-sources:
-  - name: staging
-    schema: ads_raw    # placeholder schema name
-    tables:
-      - name: listen_events
-      - name: users

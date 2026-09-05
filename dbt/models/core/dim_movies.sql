@@ -1,6 +1,6 @@
 {{ config(materialized = 'table') }}
 
-SELECT {{ dbt_utils.surrogate_key(['movie_id']) }} AS movieKey,
+SELECT {{ dbt_utils.surrogate_key(['movieId']) }} AS movieKey,
        *
 FROM (
 
@@ -18,7 +18,7 @@ FROM (
                star,
                star_id AS starId,
                votes,
-               "gross(in $)" AS gross
+               `gross(in $)` AS gross
         FROM {{ source('staging', 'movies') }}
     )
 
