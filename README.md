@@ -234,7 +234,6 @@ ad-data/
 ├── contracts/            # Declarative data contracts
 ├── scripts/              # Backfills, validation, schema checks
 ├── tests/                # Automated tests
-├── docs/                 # Architecture, decisions & revision guides
 ├── docker-compose.yml
 └── README.md
 ```
