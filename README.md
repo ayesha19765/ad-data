@@ -1,5 +1,6 @@
 # Adaptive Ads
 
+
 **Enterprise Ad Analytics & Telemetry Data Engineering Platform**
 
 [![CI Pipeline](https://github.com/ayesha19765/ad-data/actions/workflows/ci.yml/badge.svg)](https://github.com/ayesha19765/ad-data/actions/workflows/ci.yml)
