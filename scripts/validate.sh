@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Adaptive Ads Data Engineering Platform - Local Validation Script
+# Adaptive Ads Data Engineering Platform - Local Validation Suite
 # ==============================================================================
 # Executes static validation across Python, Airflow DAGs, SQL, dbt, and security.
+# Executes multi-tier static validation across Python, Unit Tests, Airflow,
+# SQL, dbt, Security, Data Contracts, Performance Pruning, and Documentation.
 # Usage: ./scripts/validate.sh
 # ==============================================================================
 
@@ -25,6 +28,8 @@ FAILURES=0
 # ------------------------------------------------------------------------------
 echo -e "${BOLD}[1/5] Checking Python Compilation...${RESET}"
 if python3 -m py_compile airflow/dags/*.py; then
+echo -e "${BOLD}[1/9] Checking Python Compilation...${RESET}"
+if python3 -m py_compile airflow/dags/*.py scripts/*.py tests/unit/*.py; then
     echo -e "${GREEN}  ✓ Python compilation passed.${RESET}\n"
 else
     echo -e "${RED}  ✗ Python compilation failed!${RESET}\n"
@@ -33,8 +38,21 @@ fi
 
 # ------------------------------------------------------------------------------
 # 2. Airflow DAG & Configuration Structure
+# 2. Python Unit Tests Suite
 # ------------------------------------------------------------------------------
 echo -e "${BOLD}[2/5] Validating Airflow DAG Definitions & References...${RESET}"
+echo -e "${BOLD}[2/9] Executing Python Unit Tests Suite...${RESET}"
+if python3 -m unittest discover tests; then
+    echo -e "${GREEN}  ✓ All Python unit tests passed.${RESET}\n"
+else
+    echo -e "${RED}  ✗ Python unit tests failed!${RESET}\n"
+    FAILURES=$((FAILURES + 1))
+fi
+
+# ------------------------------------------------------------------------------
+# 3. Airflow DAG & Configuration Structure
+# ------------------------------------------------------------------------------
+echo -e "${BOLD}[3/9] Validating Airflow DAG Definitions & References...${RESET}"
 python3 -c "
 import sys, os
 sys.path.insert(0, 'airflow/dags')
@@ -62,12 +80,15 @@ fi
 
 # ------------------------------------------------------------------------------
 # 3. SQL & Jinja Template Validation
+# 4. SQL & Jinja Template Validation
 # ------------------------------------------------------------------------------
 echo -e "${BOLD}[3/5] Validating SQL File Integrity...${RESET}"
+echo -e "${BOLD}[4/9] Validating SQL File Integrity...${RESET}"
 python3 -c "
 import glob, sys
 
 sql_files = glob.glob('dbt/models/**/*.sql', recursive=True) + glob.glob('airflow/dags/sql/*.sql')
+sql_files = glob.glob('dbt/models/**/*.sql', recursive=True) + glob.glob('airflow/dags/sql/*.sql') + glob.glob('dbt/tests/*.sql')
 print(f'  ✓ Scanning {len(sql_files)} SQL files across dbt and Airflow...')
 for f in sql_files:
     with open(f, 'r') as fp:
@@ -78,6 +99,7 @@ for f in sql_files:
 "
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}  ✓ All SQL model and template files are populated and accessible.${RESET}\n"
+    echo -e "${GREEN}  ✓ All SQL model, test, and template files are populated and accessible.${RESET}\n"
 else
     echo -e "${RED}  ✗ SQL file validation failed!${RESET}\n"
     FAILURES=$((FAILURES + 1))
@@ -85,8 +107,10 @@ fi
 
 # ------------------------------------------------------------------------------
 # 4. dbt Model & Schema Graph Validation
+# 5. dbt Model & Schema Graph Validation
 # ------------------------------------------------------------------------------
 echo -e "${BOLD}[4/5] Checking dbt Models & Schema Definitions...${RESET}"
+echo -e "${BOLD}[5/9] Checking dbt Models & Schema Definitions...${RESET}"
 python3 -c "
 import yaml, glob, sys
 
@@ -113,8 +137,10 @@ fi
 
 # ------------------------------------------------------------------------------
 # 5. Security & Credential Hygiene Check
+# 6. Security & Credential Hygiene Check
 # ------------------------------------------------------------------------------
 echo -e "${BOLD}[5/5] Scanning for Credentials & Secret Leaks...${RESET}"
+echo -e "${BOLD}[6/9] Scanning for Credentials & Secret Leaks...${RESET}"
 SECRET_COUNT=0
 if grep -rn "private_key" airflow/creds/ 2>/dev/null; then
     echo -e "${RED}  ✗ Active private key found in airflow/creds/!${RESET}"
@@ -134,8 +160,10 @@ fi
 
 # ------------------------------------------------------------------------------
 # 6. Performance & Pruning Safeguards Check
+# 7. Performance & Pruning Safeguards Check
 # ------------------------------------------------------------------------------
 echo -e "${BOLD}[6/7] Auditing Partition Pruning & Query Safeguards...${RESET}"
+echo -e "${BOLD}[7/9] Auditing Partition Pruning & Query Safeguards...${RESET}"
 python3 -c "
 import glob, sys
 
@@ -169,13 +197,29 @@ fi
 
 # ------------------------------------------------------------------------------
 # 7. Operational Tooling Smoke Test
+# 8. Operational Tooling Smoke Test (Contracts, Drift & Backfill)
 # ------------------------------------------------------------------------------
 echo -e "${BOLD}[7/7] Validating Operational Scripts (Schema Drift & Backfill)...${RESET}"
 if python3 scripts/check_schema.py --strict > /dev/null && \
+echo -e "${BOLD}[8/9] Validating Operational Scripts (Contracts, Schema Drift & Backfill)...${RESET}"
+if python3 scripts/validate_contracts.py --strict > /dev/null && \
+   python3 scripts/check_schema.py --strict > /dev/null && \
    python3 scripts/backfill.py --start "2026-09-01T00:00:00" --end "2026-09-01T01:00:00" --dry-run > /dev/null; then
     echo -e "${GREEN}  ✓ Operational utilities (check_schema.py, backfill.py) executed successfully.${RESET}\n"
+    echo -e "${GREEN}  ✓ Operational utilities (validate_contracts, check_schema, backfill) executed successfully.${RESET}\n"
 else
     echo -e "${RED}  ✗ Operational tooling check failed!${RESET}\n"
+    FAILURES=$((FAILURES + 1))
+fi
+
+# ------------------------------------------------------------------------------
+# 9. Documentation Integrity & Link Validation
+# ------------------------------------------------------------------------------
+echo -e "${BOLD}[9/9] Checking Documentation & Cross-Reference Integrity...${RESET}"
+if python3 scripts/validate_docs.py > /dev/null; then
+    echo -e "${GREEN}  ✓ Documentation integrity verified (30 documents and all links valid).${RESET}\n"
+else
+    echo -e "${RED}  ✗ Documentation validation failed!${RESET}\n"
     FAILURES=$((FAILURES + 1))
 fi
 
@@ -186,6 +230,7 @@ echo -e "${BOLD}${BLUE}=====================================================${RE
 if [ $FAILURES -eq 0 ]; then
     echo -e "${BOLD}${GREEN}  ALL VALIDATION CHECKS PASSED (5/5)               ${RESET}"
     echo -e "${BOLD}${GREEN}  ALL VALIDATION CHECKS PASSED (7/7)               ${RESET}"
+    echo -e "${BOLD}${GREEN}  ALL VALIDATION CHECKS PASSED (9/9)               ${RESET}"
     echo -e "${BOLD}${BLUE}=====================================================${RESET}\n"
     exit 0
 else

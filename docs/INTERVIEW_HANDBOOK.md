@@ -187,3 +187,52 @@ BigQuery scans only the last 3 days of events and executes partition-scoped upse
     *A:* `scripts/backfill.py` slices the 30-day range into discrete hourly or daily intervals, executing them in controlled batches rather than launching 720 simultaneous unconstrained queries.
 30. **Q: If `dim_users` grows to 50 million records, how do you scale the SCD Type 2 logic?**  
     *A:* Instead of a full-table scan with window functions on every run, transition `dim_users` to dbt snapshots (`dbt snapshot` using `check` or `timestamp` strategy), which only scans updated user state delta records rather than the full historical log.
+
+---
+
+## 6. Production Engineering, Governance & Disaster Recovery Questions
+
+### Testing & Validation Pyramid
+31. **Q: How would you test this data pipeline across the development lifecycle?**  
+    *A:* We implement a 4-tier testing pyramid: Tier 1 (Fast Python unit tests in `tests/unit/` testing configs, dates, and schema drift logic in <1s); Tier 2 (Static analysis in CI using Ruff and SQLFluff); Tier 3 (dbt schema and singular business rule tests validating uniqueness, foreign keys, and SCD2 invariants); and Tier 4 (Staging integration tests in BigQuery).
+32. **Q: What is your configuration testing strategy?**  
+    *A:* `tests/unit/test_event_config.py` validates that every stream in `EVENT_CONFIG` contains all required metadata keys, that SQL template files physically exist, and that declared partition fields exist within the schema.
+33. **Q: What singular dbt tests did you implement to protect business logic?**  
+    *A:* We implemented `assert_dim_users_valid_date_ranges.sql` (ensures `rowActivationDate <= rowExpirationDate`), `assert_fact_streams_valid_duration.sql` (ensures non-negative duration), `assert_fact_ad_events_valid_timestamps.sql` (ensures timestamps are valid), and `assert_daily_ad_metrics_rates_bounded.sql` (ensures ratios are between 0.0 and 1.0).
+
+### Data Contracts & Governance
+34. **Q: What is a Data Contract in your platform and how is it enforced?**  
+    *A:* Data contracts in `contracts/*.yml` define the formal interface between telemetry producers and the warehouse (dataset name, owner, partition strategy, column types, nullability, and quality expectations). `scripts/validate_contracts.py` validates compliance in CI before deployment.
+35. **Q: What happens if an upstream producer adds a new column to an event?**  
+    *A:* Field additions are backward-compatible. BigQuery supports `ALLOW_FIELD_ADDITION`. Semantic staging views (`stg_*`) isolate downstream models so nothing breaks until the contract is updated and the column is deliberately exposed.
+36. **Q: What happens if an upstream producer changes a field data type?**  
+    *A:* Breaking type changes are caught in CI by `scripts/validate_contracts.py` and `scripts/check_schema.py`. Staging views apply explicit casts to normalize types or fail fast during validation.
+37. **Q: How do you handle user privacy and PII in the warehouse?**  
+    *A:* Demographic attributes (`firstName`, `lastName`, `dateOfBirth`) are isolated exclusively in the SCD2 `dim_users` dimension table. Fact tables and marts reference only surrogate keys (`userKey`, `videoKey`, `locationKey`), ensuring analytical queries never expose direct PII.
+38. **Q: What is your data retention lifecycle policy?**  
+    *A:* Raw GCS files transition to Nearline at 30 days, Coldline at 90 days, and are deleted at 365 days. BigQuery staging and fact partitions expire automatically after 730 days (2 years).
+
+### Disaster Recovery, RPO & RTO
+39. **Q: What is your RPO (Recovery Point Objective) and RTO (Recovery Time Objective)?**  
+    *A:* Proposed RPO is ≤ 1 hour (bounded by the hourly ingestion schedule). Proposed RTO is ≤ 30 minutes for single-stream partition recovery and ≤ 2 hours for a full-warehouse rebuild from raw GCS files.
+40. **Q: How would you recover a corrupted staging partition?**  
+    *A:* Airflow's partition-scoped replacement pattern allows executing an atomic `DELETE` + `INSERT` over the corrupted interval without affecting other partitions. Downstream dbt models are re-executed with `dbt run --select core marts`.
+41. **Q: How would you restore a table accidentally deleted in BigQuery?**  
+    *A:* Within 7 days, restore the table instantly using BigQuery Time Travel (`FOR SYSTEM_TIME AS OF TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)`). Beyond 7 days, re-run `scripts/backfill.py` from raw GCS Parquet archives.
+42. **Q: What parts of the warehouse are rebuildable vs recoverable?**  
+    *A:* All dbt dimensional models and marts are 100% **rebuildable** from raw staging tables. Staging tables and raw GCS Parquet files are **recoverable** via GCS 11-9s durability and BigQuery Time Travel.
+
+### Deployment, Rollback & Operations
+43. **Q: How do you separate development, testing, and production environments?**  
+    *A:* Environments are isolated by GCP project and BigQuery dataset prefixes (`dev` for local Docker, `pr_<id>` for CI runners, and `prod` for Cloud Composer). Target configuration is driven by environment variables and dbt profiles.
+44. **Q: How do you roll back a bad dbt deployment in production?**  
+    *A:* Execute `git revert` on the offending commit. CI validates the revert and triggers a dbt run for the affected models to restore previous schema definitions.
+45. **Q: How do you prevent secret leaks in a collaborative repository?**  
+    *A:* Zero credentials or private keys are committed to git; `.gitignore` excludes `.env`, `*.json`, and `*.key`. CI executes an automated secret scanner on every pull request.
+46. **Q: What technical debt remains in the platform?**  
+    *A:* Documented in `docs/TECHNICAL_DEBT.md`: scaling `dim_users` from full window scans to dbt snapshot deltas at >50M rows, and transitioning from transient external tables to BigQuery Storage Write API at 100x scale.
+47. **Q: What is the single strongest engineering decision in this platform?**  
+    *A:* The decoupled parallel TaskGroup architecture driven by a centralized `EVENT_CONFIG` registry and partition-scoped atomic replacement pattern. It guarantees strict idempotency, isolates stream failures, and allows onboarding new event streams in minutes with zero DAG code duplication.
+48. **Q: What would you change if this platform processed 50,000 events per second?**  
+    *A:* Replace batch GCS landing with Google Cloud Pub/Sub, deploy Google Cloud Dataflow (Apache Beam) for streaming deduplication and windowed aggregations, and stream directly into BigQuery via the Storage Write API.
+

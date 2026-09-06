@@ -1,0 +1,62 @@
+version: 1
+dataset: watch_events
+owner: "Platform / Video Streaming Engineering"
+description: "User video and stream playback telemetry events"
+target_table: "adaptive_ads_stg.watch_events"
+partition:
+  field: "ts"
+  type: "HOUR"
+columns:
+  - name: video
+    type: STRING
+    mode: NULLABLE
+    description: "Title of video content streamed"
+  - name: duration
+    type: FLOAT64
+    mode: NULLABLE
+    description: "Stream elapsed playback time in seconds"
+  - name: ts
+    type: TIMESTAMP
+    mode: NULLABLE
+    description: "Event occurrence timestamp in UTC"
+  - name: auth
+    type: STRING
+    mode: NULLABLE
+  - name: level
+    type: STRING
+    mode: NULLABLE
+  - name: city
+    type: STRING
+    mode: NULLABLE
+  - name: state
+    type: STRING
+    mode: NULLABLE
+  - name: userAgent
+    type: STRING
+    mode: NULLABLE
+  - name: lon
+    type: FLOAT64
+    mode: NULLABLE
+  - name: lat
+    type: FLOAT64
+    mode: NULLABLE
+  - name: userId
+    type: INTEGER
+    mode: NULLABLE
+    description: "User account identifier"
+  - name: lastName
+    type: STRING
+    mode: NULLABLE
+  - name: firstName
+    type: STRING
+    mode: NULLABLE
+  - name: dateOfBirth
+    type: STRING
+    mode: NULLABLE
+  - name: gender
+    type: STRING
+    mode: NULLABLE
+  - name: registration
+    type: INTEGER
+    mode: NULLABLE
+

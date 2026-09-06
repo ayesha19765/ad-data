@@ -29,6 +29,16 @@ jobs:
         run: |
           python -m py_compile airflow/dags/*.py
 
+      - name: Run Python Unit Tests
+        run: |
+          python -m unittest discover tests
+
+      - name: Validate Data Contracts & Schemas
+        run: |
+          python scripts/validate_contracts.py --strict
+          python scripts/check_schema.py --strict
+          python scripts/validate_docs.py
+
       - name: Run Ruff Linter
         run: |
           ruff check .

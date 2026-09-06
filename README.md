@@ -16,6 +16,7 @@ It simulates an end-to-end ELT (Extract, Load, Transform) workflow — from raw 
 ---
 Orchestrated with **Apache Airflow**, transformed using **dbt**, and queried on **Google BigQuery**, the platform processes raw telemetry event streams into an enterprise **Kimball dimensional star schema**, featuring **SCD Type 2** user dimensions, **incremental fact tables**, day-level **partitioning/clustering**, and **Looker-ready analytical marts**.
 Orchestrated with **Apache Airflow**, transformed using **dbt**, and queried on **Google BigQuery**, the platform processes raw telemetry event streams into an enterprise **Kimball dimensional star schema**, featuring **SCD Type 2** user dimensions, **incremental fact tables**, day-level **partitioning/clustering**, **late-arriving data lookbacks**, and **Looker-ready analytical marts**.
+Orchestrated with **Apache Airflow**, transformed using **dbt**, and queried on **Google BigQuery**, the platform processes raw telemetry event streams into an enterprise **Kimball dimensional star schema**, featuring **SCD Type 2** user dimensions, **incremental fact tables**, day-level **partitioning/clustering**, **late-arriving data lookbacks**, **declarative data contracts**, and **Looker-ready analytical marts**.
 
 ## Architecture
 
@@ -116,6 +117,7 @@ flowchart TD
 
 ### Visualization
 - **Decoupled Parallel Ingestion**: Reusable Airflow `TaskGroup` architecture driven by a centralized `EVENT_CONFIG` registry, allowing new event streams to be added via configuration without pipeline duplication.
+- **Decoupled Parallel Ingestion**: Reusable Airflow `TaskGroup` architecture driven by a centralized `EVENT_CONFIG` registry, allowing new event streams to be onboarded via configuration without pipeline duplication.
 - **Partition-Scoped Idempotency**: Atomic `DELETE` + `INSERT` pattern on execution timestamp windows guarantees exact-once semantics on retries and backfills without duplicate data.
 - **Kimball Dimensional Modeling**:
   - **SCD Type 2 User Dimension (`dim_users`)**: Window-function logic tracking historical subscriber membership transitions (`free` vs `paid`) with non-overlapping validity ranges.
@@ -137,9 +139,16 @@ flowchart TD
   - Airflow tasks execute atomic `DELETE` + `INSERT` operations scoped strictly to the execution hour interval, guaranteeing exact-once staging state during retries and backfills.
 - **Controlled Column Projection**:
   - Eliminates unbounded `SELECT *` across all core warehouse models and marts, reducing BigQuery memory footprint and slot-ms usage.
+- **Declarative Data Contracts**: YAML contracts in `contracts/` enforced via automated CI gates (`scripts/validate_contracts.py`).
+- **BigQuery Cost & Partition Pruning**:
+  - `incremental_predicates` limits merge scans to the active 7-day window.
+  - Multi-column clustering (`userKey`, `adType`, `videoKey`) prevents block scans.
+  - Explicit column projections eliminate wildcard `SELECT *` across all core models.
 - **Operational Backfill & Schema Drift Tooling**:
   - `scripts/backfill.py`: Safe CLI backfill orchestrator with date validation, partition isolation, and dry-run previews.
   - `scripts/check_schema.py`: Automated schema drift detector reporting added, removed, or type-shifted fields.
+- **Disaster Recovery & Durability**:
+  - RPO ≤ 1 hour, RTO ≤ 30 minutes, BigQuery 7-day Time Travel recovery playbooks.
 
 - Final tables are stored in BigQuery and can be connected to **Looker Studio**, **Tableau**, or other BI tools for insights.
 
@@ -164,6 +173,7 @@ flowchart TD
 | **Raw Storage** | Google Cloud Storage | Standard | Ingestion landing zone for columnar Parquet telemetry files |
 | **CI / CD** | GitHub Actions | v4 / v5 | Automated multi-stage PR and push quality validation |
 | **Linters & QA** | Ruff / SQLFluff | Latest | Python 3.9 code quality and BigQuery SQL dialect formatting |
+| **Testing** | Unittest / Pytest | Latest | Automated testing pyramid across configs, dates, and contracts |
 | **Containerization** | Docker / Compose | Compose v2 | Local Airflow development cluster (Celery, Redis, Postgres) |
 
 ---
@@ -262,6 +272,7 @@ docker ps
 ### 4. Trigger DAGs in Airflow
 **Checks Executed**:
 **Automated Validation Suite (7/7 Checks)**:
+**Automated Validation Suite (8/8 Checks)**:
 1. Python syntax & compilation (`python3 -m py_compile`)
 2. Airflow DAG definition, task IDs, and template mapping verification
 3. SQL file integrity and syntax scanning across all dbt and Airflow models
@@ -272,6 +283,8 @@ docker ps
 5. Security and secret leak scanning
 6. Performance & partition pruning safeguards (`incremental_predicates` & explicit projections)
 7. Operational tooling smoke tests (`check_schema.py`, `backfill.py --dry-run`)
+7. Operational tooling smoke tests (`check_schema.py`, `backfill.py --dry-run`, `validate_contracts.py`)
+8. Documentation and link integrity validation (`validate_docs.py`)
 
 After the Airflow web interface loads, follow these steps:
 
@@ -310,6 +323,13 @@ You can track the execution flow through:
 - 📑 **[Phase 1 Correctness Audit (PHASE_1_AUDIT.md)](docs/PHASE_1_AUDIT.md)**: Historical audit and consistency baseline.
 - 📖 **[System Architecture (docs/ARCHITECTURE.md)](docs/ARCHITECTURE.md)**: Canonical end-to-end architecture specification.
 - 🎓 **[Technical Interview Handbook (docs/INTERVIEW_HANDBOOK.md)](docs/INTERVIEW_HANDBOOK.md)**: 30+ real Data Engineering interview Q&As, architecture deep-dives, and trade-off justifications.
+- 🎓 **[Technical Interview Handbook (docs/INTERVIEW_HANDBOOK.md)](docs/INTERVIEW_HANDBOOK.md)**: 48+ real Data Engineering interview Q&As, architecture deep-dives, and trade-off justifications.
+- 📜 **[Telemetry Data Contracts (docs/DATA_CONTRACTS.md)](docs/DATA_CONTRACTS.md)**: Data contracts, ownership, schema specs, and compatibility rules.
+- 🔒 **[Data Governance & Privacy (docs/DATA_GOVERNANCE.md)](docs/DATA_GOVERNANCE.md)**: Data classification, PII isolation, and retention policies.
+- 🚨 **[Disaster Recovery & Runbook (docs/DISASTER_RECOVERY.md)](docs/DISASTER_RECOVERY.md)**: 7 incident recovery playbooks, RPO/RTO SLAs, and backup hierarchy.
+- 🔄 **[Release Process & Rollback (docs/RELEASE_PROCESS.md)](docs/RELEASE_PROCESS.md)**: Branching, CI quality gates, semantic versioning, and rollback playbooks.
+- 👥 **[Platform Ownership Matrix (docs/OWNERSHIP.md)](docs/OWNERSHIP.md)**: RACI accountability and subsystem ownership.
+- 🎯 **[Service Level Objectives & Error Budgets (docs/SLO.md)](docs/SLO.md)**: Freshness, availability, quality, and recovery SLOs.
 - ⚡ **[Scalability & Growth Trajectory (docs/SCALABILITY.md)](docs/SCALABILITY.md)**: Scaling strategy across 1x, 10x, 100x, and 1,000x streaming scale.
 - 💰 **[BigQuery Cost Optimization (docs/BIGQUERY_COST_OPTIMIZATION.md)](docs/BIGQUERY_COST_OPTIMIZATION.md)**: Partition pruning, clustering, and slot cost minimization.
 - ⏱️ **[Late-Arriving Data Strategy (docs/LATE_ARRIVING_DATA.md)](docs/LATE_ARRIVING_DATA.md)**: Sliding lookback windows and upsert mechanics.
@@ -318,6 +338,7 @@ You can track the execution flow through:
 - 📐 **[Model Materialization Matrix (docs/MODEL_MATERIALIZATION.md)](docs/MODEL_MATERIALIZATION.md)**: Detailed breakdown of all 17 dbt warehouse models.
 - 📊 **[Performance Testing & Benchmarking (docs/PERFORMANCE_TESTING.md)](docs/PERFORMANCE_TESTING.md)**: 4-tier testing hierarchy and 10x/100x stress methodology.
 - 🏛️ **[Architecture Decision Records (docs/DECISIONS.md)](docs/DECISIONS.md)**: ADR-001 through ADR-010 covering key platform decisions.
+- 🏛️ **[Architecture Decision Records (docs/DECISIONS.md)](docs/DECISIONS.md)**: ADR-001 through ADR-014 covering key platform decisions.
 - 💵 **[Cloud Cost & Capacity Model (docs/COST_MODEL.md)](docs/COST_MODEL.md)**: Infrastructure pricing and storage capacity formulas.
 - ⏱️ **[Data Freshness & SLAs (docs/DATA_FRESHNESS.md)](docs/DATA_FRESHNESS.md)**: Freshness SLAs across staging, core, marts, and BI.
 - 📊 **[BI Dashboard Specification (docs/BI_DASHBOARD.md)](docs/BI_DASHBOARD.md)**: Looker Studio wireframes and metric specifications.
@@ -325,6 +346,9 @@ You can track the execution flow through:
 - 🛠️ **[Operations Runbook (docs/OPERATIONS_RUNBOOK.md)](docs/OPERATIONS_RUNBOOK.md)**: Triage procedures, backfill guidelines, and incident recovery playbooks.
 - 🔄 **[CI/CD Specification (docs/CI_CD.md)](docs/CI_CD.md)**: GitHub Actions workflow triggers, test gates, and secret policies.
 - 🚨 **[Alerting Framework (docs/ALERTING.md)](docs/ALERTING.md)**: Incident severity matrix and Airflow failure callback handlers.
+- 📑 **[Technical Debt Register (docs/TECHNICAL_DEBT.md)](docs/TECHNICAL_DEBT.md)**: Catalog of intentional limitations and planned improvements.
+- 🏆 **[Project Maturity Scorecard (docs/PROJECT_SCORECARD.md)](docs/PROJECT_SCORECARD.md)**: 14-dimension evidence-based maturity rating (9.5/10).
+- 💼 **[Hiring Manager Portfolio Audit (docs/PORTFOLIO_AUDIT.md)](docs/PORTFOLIO_AUDIT.md)**: Technical evaluation, interview questions, and recruiter summary.
 
 - **Airflow Graph View** → Visualizes task dependencies and order in which tasks execute
 - **Flower Dashboard** → Monitors real-time task progress, retries, and worker status

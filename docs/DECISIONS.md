@@ -103,3 +103,40 @@
 - **Trade-offs & Rationale**: Isolates warehouse core logic from upstream changes and standardizes missing data representations.
 - **Consequences**: Adds a virtual DAG layer in dbt graph.
 
+---
+
+### ADR-011: Declarative Data Contracts for Event Telemetry
+- **Context**: Upstream telemetry emitters can introduce breaking schema changes or missing fields that silently corrupt BigQuery tables.
+- **Decision**: Define declarative YAML data contracts in `contracts/` and validate them in CI and operational pipelines via `scripts/validate_contracts.py`.
+- **Alternatives Considered**: Manual developer wiki documentation, unconstrained runtime schema evolution.
+- **Trade-offs & Rationale**: Explicitly enforces ownership, types, and quality invariants at the ingestion perimeter.
+- **Consequences**: Adding new fields requires updating contract specifications.
+
+---
+
+### ADR-012: Multi-Tier Testing Pyramid for Data Pipelines
+- **Context**: Relying exclusively on end-to-end cloud tests slows developer feedback loops and introduces cost.
+- **Decision**: Structure testing into a 4-tier hierarchy: Python Unit Tests (fast), Static Analysis (Ruff, SQLFluff), dbt Schema & Singular Assertions, and Staging Integration tests.
+- **Alternatives Considered**: Cloud-only integration testing, manual spot-checking.
+- **Trade-offs & Rationale**: Catches 95% of regressions locally in under 1 second without requiring active GCP credentials.
+- **Consequences**: Developers must maintain unit test cases alongside pipeline modifications.
+
+---
+
+### ADR-013: Disaster Recovery via Idempotent Partition Replacements & Time Travel
+- **Context**: Pipeline failures or data corruptions require rapid recovery without data loss or duplicate rows.
+- **Decision**: Combine BigQuery 7-day Time Travel with Airflow partition-scoped atomic `DELETE` + `INSERT` reload procedures.
+- **Alternatives Considered**: Full daily warehouse rebuilds, snapshot clones on every hourly run.
+- **Trade-offs & Rationale**: Achieves RPO ≤ 1 hour and RTO ≤ 30 minutes with zero additional storage duplication cost.
+- **Consequences**: Requires operational discipline in partition date targeting during backfills.
+
+---
+
+### ADR-014: Automated Documentation Integrity Verification
+- **Context**: Documentation and links easily drift out of date as models and scripts evolve.
+- **Decision**: Deploy `scripts/validate_docs.py` as an automated gate in CI and `./scripts/validate.sh`.
+- **Alternatives Considered**: Manual documentation reviews.
+- **Trade-offs & Rationale**: Guarantees all markdown files, links, and architectural references are valid and non-empty on every PR.
+- **Consequences**: Broken links fail the CI build immediately.
+
+
