@@ -12,7 +12,6 @@
 ) }}
 
 WITH ad_events AS (
-    SELECT * 
     SELECT 
         userId,
         adType,
@@ -60,4 +59,3 @@ LEFT JOIN {{ ref('dim_location') }} AS dim_location
     AND ad_events.lon = dim_location.longitude
 LEFT JOIN {{ ref('dim_datetime') }} AS dim_datetime
     ON dim_datetime.date = DATE_TRUNC(ad_events.ts, HOUR)
-

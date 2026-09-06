@@ -4,7 +4,6 @@
 ) }}
 
 SELECT {{ dbt_utils.surrogate_key(['movieId']) }} AS movieKey,
-       *
        movieId,
        movieName,
        year,

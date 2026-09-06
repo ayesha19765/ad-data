@@ -12,7 +12,6 @@
 ) }}
 
 WITH watch_events AS (
-    SELECT * 
     SELECT 
         userId,
         video,

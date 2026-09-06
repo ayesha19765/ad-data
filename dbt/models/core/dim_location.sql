@@ -4,7 +4,6 @@
 ) }}
 
 SELECT {{ dbt_utils.surrogate_key(['latitude', 'longitude', 'city', 'stateName']) }} AS locationKey,
-       *
        city,
        stateCode,
        stateName,
@@ -20,7 +19,7 @@ FROM (
         watch_events.lon AS longitude
     FROM {{ ref('stg_watch_events') }} AS watch_events
     LEFT JOIN {{ ref('stg_state_codes') }} AS state_codes 
-        ON watch_events.state = state_codes.stateCode
+    ON watch_events.state = state_codes.stateCode
 
     UNION ALL
 
