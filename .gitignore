@@ -3,6 +3,13 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # Airflow logs and environment
 airflow/logs/
@@ -21,12 +28,16 @@ dbt/logs/
 dbt/dbt_packages/
 dbt/.user.yml
 
+# Linters & tooling
+.sqlfluff
+
 # Docker and system files
 *.log
 *.env
 *.DS_Store
 
 # VS Code
+# VS Code & IDEs
 .vscode/
 .idea/
 
