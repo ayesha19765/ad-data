@@ -11,9 +11,11 @@
 **Ad Analytics** is a production-style data engineering project that demonstrates how real-world advertising or media platforms manage, transform, and analyze data.  
 It simulates an end-to-end ELT (Extract, Load, Transform) workflow — from raw CSV ingestion to automated transformations and analytics using **Apache Airflow**, **dbt**, and **BigQuery**.
 **Adaptive Ads** is an end-to-end Data Engineering platform built to ingest, model, and analyze high-velocity advertising and video streaming telemetry on **Google Cloud Platform (GCP)**. 
+**Adaptive Ads** is an enterprise data engineering platform designed to ingest, model, and analyze high-velocity advertising and video streaming telemetry on **Google Cloud Platform (GCP)**. 
 
 ---
 Orchestrated with **Apache Airflow**, transformed using **dbt**, and queried on **Google BigQuery**, the platform processes raw telemetry event streams into an enterprise **Kimball dimensional star schema**, featuring **SCD Type 2** user dimensions, **incremental fact tables**, day-level **partitioning/clustering**, and **Looker-ready analytical marts**.
+Orchestrated with **Apache Airflow**, transformed using **dbt**, and queried on **Google BigQuery**, the platform processes raw telemetry event streams into an enterprise **Kimball dimensional star schema**, featuring **SCD Type 2** user dimensions, **incremental fact tables**, day-level **partitioning/clustering**, **late-arriving data lookbacks**, and **Looker-ready analytical marts**.
 
 ## Architecture
 
@@ -110,6 +112,7 @@ flowchart TD
   - Executes ingestion and transformation DAGs on schedule.
   - Monitors task success and logs progress in the Airflow UI.
 ## ⚡ Key Engineering Capabilities
+## ⚡ Scalability, Performance & Reliability Engineering
 
 ### Visualization
 - **Decoupled Parallel Ingestion**: Reusable Airflow `TaskGroup` architecture driven by a centralized `EVENT_CONFIG` registry, allowing new event streams to be added via configuration without pipeline duplication.
@@ -124,6 +127,19 @@ flowchart TD
   - `wide_streams`: Denormalized reporting view for BI slicing.
 - **Two-Tier CI/CD & Automated Quality Gates**: Multi-stage GitHub Actions CI executing Python compilation, Ruff linting, SQLFluff BigQuery linting, `DagBag` parsing, dbt graph validation, and secret leak scanning.
 - **Single-Command Local Validation**: Developer validation script (`./scripts/validate.sh`) running all static checks in seconds.
+- **BigQuery Day Partitioning & Multi-Column Clustering**:
+  - `fact_streams` and `fact_ad_events` are partitioned by `DAY` on `ts` and clustered on high-cardinality slice keys (`userKey`, `adType`, `videoKey`, `locationKey`), ensuring query scans prune irrelevant storage blocks.
+- **Incremental Merges & Partition Pruning Bounds**:
+  - Fact models utilize `dbt` incremental `merge` strategies with explicit `incremental_predicates` (`INTERVAL 7 DAY`), eliminating full-table scans during hourly upsert cycles.
+- **Late-Arriving Telemetry Handling**:
+  - Implements a **3-day sliding lookback window** (`ts >= MAX(ts) - INTERVAL 3 DAY`) that reconciles delayed mobile and web events without data loss or duplicate rows.
+- **Partition-Scoped Idempotent Ingestion**:
+  - Airflow tasks execute atomic `DELETE` + `INSERT` operations scoped strictly to the execution hour interval, guaranteeing exact-once staging state during retries and backfills.
+- **Controlled Column Projection**:
+  - Eliminates unbounded `SELECT *` across all core warehouse models and marts, reducing BigQuery memory footprint and slot-ms usage.
+- **Operational Backfill & Schema Drift Tooling**:
+  - `scripts/backfill.py`: Safe CLI backfill orchestrator with date validation, partition isolation, and dry-run previews.
+  - `scripts/check_schema.py`: Automated schema drift detector reporting added, removed, or type-shifted fields.
 
 - Final tables are stored in BigQuery and can be connected to **Looker Studio**, **Tableau**, or other BI tools for insights.
 
@@ -188,6 +204,7 @@ Before you begin, ensure the following tools are installed and configured on you
 - Docker & Docker Desktop (v20+)
 - Python 3.9+
 - Google Cloud Project with BigQuery enabled (for live execution)
+- Google Cloud Project with BigQuery enabled (for live cloud execution)
 
 ### 2. Environment Configuration
 Create your local environment file from the provided template:
@@ -244,11 +261,17 @@ docker ps
 
 ### 4. Trigger DAGs in Airflow
 **Checks Executed**:
+**Automated Validation Suite (7/7 Checks)**:
 1. Python syntax & compilation (`python3 -m py_compile`)
 2. Airflow DAG definition, task IDs, and template mapping verification
 3. SQL file integrity and syntax scanning across all dbt and Airflow models
 4. dbt schema YAML graph and test definition validation
 5. Security and secret leak detection
+3. SQL file integrity and non-emptiness across all dbt and Airflow models
+4. dbt schema YAML graph and test definition parsing
+5. Security and secret leak scanning
+6. Performance & partition pruning safeguards (`incremental_predicates` & explicit projections)
+7. Operational tooling smoke tests (`check_schema.py`, `backfill.py --dry-run`)
 
 After the Airflow web interface loads, follow these steps:
 
@@ -274,6 +297,7 @@ Click the Trigger DAG button (▶️) beside each one.
 
 ### Monitoring
 ## 📚 Project Documentation & Runbooks
+## 📚 Technical Documentation Index
 
 You can track the execution flow through:
 - 📖 **[System Architecture (ARCHITECTURE.md)](docs/ARCHITECTURE.md)**: Canonical end-to-end architecture specification.
@@ -284,6 +308,23 @@ You can track the execution flow through:
 - 🔄 **[CI/CD Specification (CI_CD.md)](docs/CI_CD.md)**: GitHub Actions workflow triggers, test gates, and secret policies.
 - 🚨 **[Alerting Framework (ALERTING.md)](docs/ALERTING.md)**: Incident severity matrix and Airflow failure callback handlers.
 - 📑 **[Phase 1 Correctness Audit (PHASE_1_AUDIT.md)](docs/PHASE_1_AUDIT.md)**: Historical audit and consistency baseline.
+- 📖 **[System Architecture (docs/ARCHITECTURE.md)](docs/ARCHITECTURE.md)**: Canonical end-to-end architecture specification.
+- 🎓 **[Technical Interview Handbook (docs/INTERVIEW_HANDBOOK.md)](docs/INTERVIEW_HANDBOOK.md)**: 30+ real Data Engineering interview Q&As, architecture deep-dives, and trade-off justifications.
+- ⚡ **[Scalability & Growth Trajectory (docs/SCALABILITY.md)](docs/SCALABILITY.md)**: Scaling strategy across 1x, 10x, 100x, and 1,000x streaming scale.
+- 💰 **[BigQuery Cost Optimization (docs/BIGQUERY_COST_OPTIMIZATION.md)](docs/BIGQUERY_COST_OPTIMIZATION.md)**: Partition pruning, clustering, and slot cost minimization.
+- ⏱️ **[Late-Arriving Data Strategy (docs/LATE_ARRIVING_DATA.md)](docs/LATE_ARRIVING_DATA.md)**: Sliding lookback windows and upsert mechanics.
+- 📑 **[Duplicate Handling Architecture (docs/DUPLICATE_HANDLING.md)](docs/DUPLICATE_HANDLING.md)**: Pipeline duplicates vs. source deduplication.
+- 🔄 **[Schema Evolution Strategy (docs/SCHEMA_EVOLUTION.md)](docs/SCHEMA_EVOLUTION.md)**: Backward-compatible vs breaking schema change management.
+- 📐 **[Model Materialization Matrix (docs/MODEL_MATERIALIZATION.md)](docs/MODEL_MATERIALIZATION.md)**: Detailed breakdown of all 17 dbt warehouse models.
+- 📊 **[Performance Testing & Benchmarking (docs/PERFORMANCE_TESTING.md)](docs/PERFORMANCE_TESTING.md)**: 4-tier testing hierarchy and 10x/100x stress methodology.
+- 🏛️ **[Architecture Decision Records (docs/DECISIONS.md)](docs/DECISIONS.md)**: ADR-001 through ADR-010 covering key platform decisions.
+- 💵 **[Cloud Cost & Capacity Model (docs/COST_MODEL.md)](docs/COST_MODEL.md)**: Infrastructure pricing and storage capacity formulas.
+- ⏱️ **[Data Freshness & SLAs (docs/DATA_FRESHNESS.md)](docs/DATA_FRESHNESS.md)**: Freshness SLAs across staging, core, marts, and BI.
+- 📊 **[BI Dashboard Specification (docs/BI_DASHBOARD.md)](docs/BI_DASHBOARD.md)**: Looker Studio wireframes and metric specifications.
+- 🚢 **[Production Deployment Guide (docs/DEPLOYMENT.md)](docs/DEPLOYMENT.md)**: Cloud Composer 2 & BigQuery deployment guide.
+- 🛠️ **[Operations Runbook (docs/OPERATIONS_RUNBOOK.md)](docs/OPERATIONS_RUNBOOK.md)**: Triage procedures, backfill guidelines, and incident recovery playbooks.
+- 🔄 **[CI/CD Specification (docs/CI_CD.md)](docs/CI_CD.md)**: GitHub Actions workflow triggers, test gates, and secret policies.
+- 🚨 **[Alerting Framework (docs/ALERTING.md)](docs/ALERTING.md)**: Incident severity matrix and Airflow failure callback handlers.
 
 - **Airflow Graph View** → Visualizes task dependencies and order in which tasks execute
 - **Flower Dashboard** → Monitors real-time task progress, retries, and worker status

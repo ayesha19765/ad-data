@@ -25,6 +25,14 @@ models:
           - not_null
           - accepted_values:
               values: [0, 1]
+      - name: rowActivationDate
+        description: "Effective start date for this user membership profile state."
+        tests:
+          - not_null
+      - name: rowExpirationDate
+        description: "Expiration date for this profile state (set to 9999-12-31 for current active row)."
+        tests:
+          - not_null
 
   - name: dim_movies
     description: "Dimension table storing enriched video and movie content metadata."

@@ -2,6 +2,7 @@
     materialized = 'incremental',
     unique_key = 'adEventKey',
     incremental_strategy = 'merge',
+    incremental_predicates = ["DBT_INTERNAL_DEST.ts >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)"],
     partition_by = {
       "field": "ts",
       "data_type": "timestamp",
@@ -12,6 +13,19 @@
 
 WITH ad_events AS (
     SELECT * 
+    SELECT 
+        userId,
+        adType,
+        video,
+        duration,
+        level,
+        auth,
+        userAgent,
+        city,
+        state,
+        lat,
+        lon,
+        ts
     FROM {{ ref('stg_ad_events') }}
     {% if is_incremental() %}
     -- Lookback window of 3 days to safely process late-arriving ad telemetry

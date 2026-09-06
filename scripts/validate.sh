@@ -133,11 +133,59 @@ else
 fi
 
 # ------------------------------------------------------------------------------
+# 6. Performance & Pruning Safeguards Check
+# ------------------------------------------------------------------------------
+echo -e "${BOLD}[6/7] Auditing Partition Pruning & Query Safeguards...${RESET}"
+python3 -c "
+import glob, sys
+
+# Check that all incremental fact models declare incremental_predicates
+fact_files = glob.glob('dbt/models/core/fact_*.sql')
+for ff in fact_files:
+    with open(ff, 'r') as fp:
+        content = fp.read()
+        if 'incremental_predicates' not in content:
+            print(f'  ✗ Missing incremental_predicates in {ff}', file=sys.stderr)
+            sys.exit(1)
+print(f'  ✓ Verified incremental_predicates partition bounds across {len(fact_files)} fact models.')
+
+# Check that core dimensions/facts avoid unprojected SELECT * in outer models
+core_files = glob.glob('dbt/models/core/*.sql')
+for cf in core_files:
+    with open(cf, 'r') as fp:
+        lines = fp.readlines()
+        for i, line in enumerate(lines, 1):
+            if 'SELECT *' in line and 'dim_datetime.sql' not in cf:
+                print(f'  ✗ Warning: Unbounded SELECT * found in {cf}:{i}', file=sys.stderr)
+                sys.exit(1)
+print(f'  ✓ Explicit column projections verified across {len(core_files)} core warehouse models.')
+"
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}  ✓ Performance and partition pruning safeguards verified.${RESET}\n"
+else
+    echo -e "${RED}  ✗ Performance safeguards check failed!${RESET}\n"
+    FAILURES=$((FAILURES + 1))
+fi
+
+# ------------------------------------------------------------------------------
+# 7. Operational Tooling Smoke Test
+# ------------------------------------------------------------------------------
+echo -e "${BOLD}[7/7] Validating Operational Scripts (Schema Drift & Backfill)...${RESET}"
+if python3 scripts/check_schema.py --strict > /dev/null && \
+   python3 scripts/backfill.py --start "2026-09-01T00:00:00" --end "2026-09-01T01:00:00" --dry-run > /dev/null; then
+    echo -e "${GREEN}  ✓ Operational utilities (check_schema.py, backfill.py) executed successfully.${RESET}\n"
+else
+    echo -e "${RED}  ✗ Operational tooling check failed!${RESET}\n"
+    FAILURES=$((FAILURES + 1))
+fi
+
+# ------------------------------------------------------------------------------
 # Summary & Exit
 # ------------------------------------------------------------------------------
 echo -e "${BOLD}${BLUE}=====================================================${RESET}"
 if [ $FAILURES -eq 0 ]; then
     echo -e "${BOLD}${GREEN}  ALL VALIDATION CHECKS PASSED (5/5)               ${RESET}"
+    echo -e "${BOLD}${GREEN}  ALL VALIDATION CHECKS PASSED (7/7)               ${RESET}"
     echo -e "${BOLD}${BLUE}=====================================================${RESET}\n"
     exit 0
 else

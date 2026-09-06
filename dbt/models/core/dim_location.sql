@@ -5,6 +5,11 @@
 
 SELECT {{ dbt_utils.surrogate_key(['latitude', 'longitude', 'city', 'stateName']) }} AS locationKey,
        *
+       city,
+       stateCode,
+       stateName,
+       latitude,
+       longitude
 FROM (
     SELECT 
         DISTINCT 

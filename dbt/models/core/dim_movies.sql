@@ -5,6 +5,20 @@
 
 SELECT {{ dbt_utils.surrogate_key(['movieId']) }} AS movieKey,
        *
+       movieId,
+       movieName,
+       year,
+       certificate,
+       runtime,
+       genre,
+       rating,
+       description,
+       director,
+       directorId,
+       star,
+       starId,
+       votes,
+       gross
 FROM (
     SELECT 
         movieId,
