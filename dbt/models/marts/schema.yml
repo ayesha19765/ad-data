@@ -44,6 +44,33 @@ models:
         tests:
           - not_null
 
+  - name: ad_content_performance
+    description: >
+      Content-level advertising engagement mart analyzing ad exposures across video titles and ad formats.
+      Grain: One row represents one video content item and one ad placement format.
+    columns:
+      - name: adContentPerformanceKey
+        description: "Surrogate primary key generated from videoKey and adType."
+        tests:
+          - unique
+          - not_null
+      - name: videoKey
+        description: "Foreign key referencing dim_movies."
+        tests:
+          - not_null
+      - name: adType
+        description: "Ad placement format."
+        tests:
+          - not_null
+      - name: total_impressions
+        description: "Total count of ad impressions for this content title and ad format."
+        tests:
+          - not_null
+      - name: unique_viewers
+        description: "Count of distinct active users."
+        tests:
+          - not_null
+
   - name: daily_user_engagement
     description: >
       Daily user streaming engagement metrics segmented by subscription tier.
