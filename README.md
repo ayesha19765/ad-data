@@ -240,35 +240,6 @@ ad-data/
 
 ---
 
-## Documentation
-
-The repository contains a separate technical knowledge base for understanding the implementation in depth.
-
-**If you're reviewing the project:**
-
-* [Architecture](docs/ARCHITECTURE.md)
-* [Data Flow](docs/DATA_FLOW.md)
-* [Data Modeling](docs/REVISION_DATA_MODELING.md)
-* [Architecture Decisions](docs/DECISIONS.md)
-* [Data Contracts](docs/DATA_CONTRACTS.md)
-* [Performance & Cost](docs/BIGQUERY_COST_OPTIMIZATION.md)
-* [CI/CD](docs/CI_CD.md)
-* [Disaster Recovery](docs/DISASTER_RECOVERY.md)
-
-**If you're preparing for an interview:**
-
-* [Project Story](docs/PROJECT_STORY.md)
-* [Architecture Cheatsheet](docs/ARCHITECTURE_CHEATSHEET.md)
-* [Interview Rapid Fire](docs/INTERVIEW_RAPID_FIRE.md)
-* [Interview Deep Dive](docs/INTERVIEW_DEEP_DIVE.md)
-* [Why These Decisions?](docs/WHY.md)
-* [Why Not Kafka / Spark / Snowflake?](docs/WHY_NOT.md)
-* [30-Minute Revision](docs/REVISION_30_MIN.md)
-
-For a complete technical walkthrough, see **[docs/TUTORIAL.md](docs/TUTORIAL.md)**.
-
----
-
 ## Contributors
 
 * Ayesha
